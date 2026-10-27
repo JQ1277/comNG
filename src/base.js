@@ -436,10 +436,13 @@ document.getElementById('modem-signal-switch').onclick = (e) => {
   }
 }
 
-document.getElementById('customized').onblur = (e) => {
-  let customized = parseInt(e.target.value)
+function saveCustomizedBaudRate(e) {
+  const customized = Number(e.target.value)
 
-  if (isNaN(customized) === true) customized = 4800
+  if (!Number.isSafeInteger(customized) || customized <= 0) {
+    if (e.type === 'blur') e.target.value = storeB.get('general.customized')
+    return
+  }
   storeB.set('general.customized', customized)
 
   let baudSelect = document.getElementById('baud-select')
@@ -447,6 +450,9 @@ document.getElementById('customized').onblur = (e) => {
   baudSelect.options[0].text = customized
   mcss.FormSelect.init(baudSelect)
 }
+
+document.getElementById('customized').oninput = saveCustomizedBaudRate
+document.getElementById('customized').onblur = saveCustomizedBaudRate
 
 document.getElementById('databits-select').onchange = (e) => {
   storeB.set('general.databitsIndex', e.target.selectedIndex)
