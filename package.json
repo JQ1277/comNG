@@ -13,6 +13,7 @@
     "premake": "node -e \"const fs=require('fs');const p='src/index.js.map';if(fs.existsSync(p))fs.unlinkSync(p)\" && yarn run build:dev",
     "build:dev": "node scripts/build-dev.js",
     "build:watch": "node scripts/build-dev.js --watch",
+    "test:terminal": "node scripts/test-terminal.js",
     "dev": "yarn run build:dev && electron-forge start",
     "dev:watch": "concurrently \"yarn run build:watch\" \"electron-forge start\"",
     "make": "electron-forge make",
@@ -146,7 +147,9 @@
     "monaco-editor": "0.20.0",
     "plotly.js-basic-dist-min": "1.58.5",
     "serialport": "^8.0.7",
-    "tabulator-tables": "5.5.0"
+    "tabulator-tables": "5.5.0",
+    "xterm": "4.19.0",
+    "xterm-addon-fit": "0.5.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "6.4.2",

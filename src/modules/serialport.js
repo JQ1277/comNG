@@ -1,49 +1,75 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-undef */
 const serial = require('serialport')
+const { EventEmitter } = require('events')
+const serialEvents = new EventEmitter()
+const { createSerialConnection } = require('./serial-connection.js')
 const { toast } = require('./utilities.js')
 const { getToastMessage } = require('./i18n.js')
 const store = require('./store.js').init()
 
-/** @typedef {InstanceType<typeof import('serialport')>} SerialPortInstance */
-
-// TODO: is modemSignalTimer needed?
-/** @type {SerialPortInstance} */
-let port, modemSignalTimer, _rcvdSerialDataCB, _echoSerialDataCB
+const pathSelect = document.getElementById('path-select')
+const baudSelect = document.getElementById('baud-select')
+const portSwitch = document.getElementById('port-switch')
+// Saved settings seed new windows. Refreshes use this window's own selection.
+let selectedPath = store.get('portPath', undefined)
+const savedPathIndex = store.get('pathIndex', 0)
+let availablePorts = []
+let refreshInFlight
+let reconnect = false
+let modemSignalTimer, _rcvdSerialDataCB, _echoSerialDataCB
+let _autoRepeatTimeout
 let modemSignal = {
   cts: false,
   dsr: false,
   dcd: false,
 }
 
-function _portUpdate() {
-  let pSelect = document.getElementById('path-select')
-  pSelect.options.length = 0
+function populatePortSelect(select, ports, path, showManufacturer = false) {
+  select.options.length = 0
+  select.add(new Option(getToastMessage('selectSerialPort'), ''))
+  ports.forEach((device) => {
+    const acpi = process.platform === 'win32' && device.pnpId && device.pnpId.startsWith('ACPI')
+    const manufacturer = acpi ? 'Microsoft' : device.manufacturer
+    const label = showManufacturer && manufacturer ? device.path + ' ' + manufacturer : device.path
+    select.add(new Option(label, device.path))
+  })
+  if (path && !ports.some((device) => device.path === path)) {
+    const unavailable = new Option(path + ' · ' + getToastMessage('serialPortUnavailable'), path)
+    unavailable.disabled = true
+    select.add(unavailable)
+  }
+  select.value = path || ''
+}
 
-  serial
+function refreshPorts() {
+  if (refreshInFlight) return refreshInFlight
+  refreshInFlight = serial
     .list()
     .then((ports) => {
-      ports.forEach((item, index) => {
-        // On Windows, the COM1 is a special port and its manufacturer is encoded in GBK
-        // However, the serialport library does not decode it, so we need to handle it manually here.
-        // The condition is if the port's pnpId starts with 'ACPI'
-        if (process.platform === 'win32' && item.pnpId && item.pnpId.startsWith('ACPI')) {
-          item.manufacturer = 'Microsoft'
-        }
-        pSelect.options.add(new Option(item.path + ' ' + item.manufacturer, index))
-        if (index === store.get('pathIndex')) pSelect.selectedIndex = index
-      })
-      mcss.FormSelect.init(pSelect)
+      availablePorts = ports
+      if (selectedPath === undefined && ports.length) {
+        selectedPath = (ports[savedPathIndex] || ports[0]).path
+      }
+      populatePortSelect(pathSelect, ports, selectedPath, true)
+      mcss.FormSelect.init(pathSelect)
+      serialEvents.emit('ports', ports)
     })
     .catch((e) => {
       console.error(e)
     })
+    .finally(() => {
+      refreshInFlight = undefined
+    })
+  return refreshInFlight
 }
 
 function _modemSignalTimerHandle() {
-  if (port === undefined || port.isOpen === false) return clearInterval(modemSignalTimer)
+  const { port } = connection
+  if (!port || !port.isOpen) return clearInterval(modemSignalTimer)
 
   port.get((e, signal) => {
+    if (port !== connection.port || !port.isOpen) return
     if (e) return console.error(e)
 
     if (signal.cts !== modemSignal.cts) {
@@ -84,6 +110,7 @@ function _modemSignalReset() {
 }
 
 function _serialWrite(data, hexMode) {
+  const { port } = connection
   if (port === undefined || port.isOpen === false) {
     toast(getToastMessage('toastNoPortOpened'))
     return false
@@ -98,200 +125,144 @@ function _serialWrite(data, hexMode) {
  * @typedef {import('@serialport/stream').openOptions} SerialPortOpenOptions
  */
 
+function selectedOptionText(select) {
+  const option = select.options[select.selectedIndex]
+  return option ? option.text : ''
+}
+
 /**
  * Get serial port opening options from UI controls
  * @returns {SerialPortOpenOptions} Configuration object for opening serial port - links to SerialPort library definitions
  */
 function _serialGetOptions() {
-  /** @type {SerialPortOpenOptions} */
-  let openOptions = {}
-
-  let baudRate = parseInt(
-    document.getElementById('baud-select').options[store.get('baudIndex')].text
-  )
-  if (isNaN(baudRate) === true) baudRate = 115200
-  openOptions.baudRate = baudRate
-
-  let dataBits = parseInt(
-    document.getElementById('databits-select').options[store.get('general.databitsIndex')].text
-  )
-  if (isNaN(dataBits) === true) dataBits = 8
-  openOptions.dataBits = dataBits
-
-  let parity = document
-    .getElementById('parity-select')
-    .options[store.get('general.parityIndex')].text.toLowerCase()
-  openOptions.parity = parity
-
-  let stopBits = parseInt(
-    document.getElementById('stopbits-select').options[store.get('general.stopbitsIndex')].text
-  )
-  if (isNaN(stopBits) === true) stopBits = 1
-  openOptions.stopBits = stopBits
-
-  let flowcontrol = document
-    .getElementById('flowcontrol-select')
-    .options[store.get('general.flowcontrolIndex')].text.toLowerCase()
-  if (flowcontrol !== 'none') openOptions[flowcontrol] = true
-
-  openOptions.autoOpen = true
-
+  const openOptions = {
+    baudRate: parseInt(selectedOptionText(baudSelect), 10) || 115200,
+    dataBits: parseInt(selectedOptionText(document.getElementById('databits-select')), 10) || 8,
+    parity: selectedOptionText(document.getElementById('parity-select')).toLowerCase() || 'none',
+    stopBits: parseInt(selectedOptionText(document.getElementById('stopbits-select')), 10) || 1,
+  }
+  const flowcontrol = selectedOptionText(
+    document.getElementById('flowcontrol-select')
+  ).toLowerCase()
+  if (flowcontrol && flowcontrol !== 'none') openOptions[flowcontrol] = true
   return openOptions
 }
 
-document.getElementById('port-switch').onclick = (e) => {
-  if (e.target.checked === true) {
-    let pathSelect = document.getElementById('path-select')
-    let portPath = pathSelect.options[pathSelect.selectedIndex].label.split(' ')[0]
-
-    port = new serial(portPath, _serialGetOptions())
-
-    port.addListener('ctlClose', () => {
-      console.log('close the port')
-      port.close()
-    })
-
-    port.on('open', () => {
-      console.log('port open event')
-      if (modemSignalTimer !== undefined) clearInterval(modemSignalTimer)
-      if (store.get('general.modemSignal') === true) {
+const connection = createSerialConnection(
+  (data) => {
+    serialEvents.emit('data', data)
+    if (_rcvdSerialDataCB) _rcvdSerialDataCB(data)
+  },
+  (state, path) => {
+    updatePortSwitch()
+    serialEvents.emit('state', state, path)
+    if (state === 'open') {
+      clearInterval(modemSignalTimer)
+      if (document.getElementById('modem-signal-switch').checked) {
         modemSignalTimer = setInterval(_modemSignalTimerHandle, 100)
       }
-      // Some device use rts/dtr for private purpose, so below code
-      // may cause strange behaviors.
-      // Below setting can fix known issues on certain devices, but may
-      // cause issues to other devices.
-      // To fit your device's private behavior, first config setting before
-      // open the port.
-      port.set(
-        {
-          rts: store.get('general.modemSignal.rts'),
-          dtr: store.get('general.modemSignal.dtr'),
-        },
-        (e) => {
-          if (e !== null) console.error(e)
-        }
-      )
-    })
-
-    port.on('error', (e) => {
-      toast(e.message)
-      document.getElementById('port-switch').checked = false
-      if (_autoRepeatTimeout !== undefined) clearInterval(_autoRepeatTimeout)
-      if (modemSignalTimer !== undefined) clearInterval(modemSignalTimer)
-    })
-
-    port.on('close', (e) => {
-      console.log('port close event')
-
-      if (e !== null) console.error(e)
-      document.getElementById('port-switch').checked = false
-      if (_autoRepeatTimeout !== undefined) clearInterval(_autoRepeatTimeout)
-      if (modemSignalTimer !== undefined) clearInterval(modemSignalTimer)
-
+      applyModemSignals()
+    }
+    if (state === 'closed') {
+      clearInterval(_autoRepeatTimeout)
+      clearInterval(modemSignalTimer)
       _modemSignalReset()
-      // emit a event to editor.js to reset editor state
-      const event = new CustomEvent('portClosed')
-      document.dispatchEvent(event)
-    })
-
-    port.on('drain', () => {
-      toast(getToastMessage('toastWriteFailed'))
-    })
-
-    port.on('data', (data) => {
-      if (_rcvdSerialDataCB) _rcvdSerialDataCB(data)
-    })
-  } else {
-    if (port === undefined || port.isOpen === false) {
-      document.getElementById('port-switch').checked = false
-    } else {
-      port.close()
+      document.dispatchEvent(new CustomEvent('portClosed'))
+      if (reconnect) {
+        reconnect = false
+        openSelectedPort()
+      }
     }
   }
-}
+)
 
-document.getElementById('rts-btn').onclick = (e) => {
-  console.log('rts click')
-
-  if (store.get('general.modemSignal.rts') === true) {
-    store.set('general.modemSignal.rts', false)
-    e.target.classList.add('grey')
-  } else {
-    store.set('general.modemSignal.rts', true)
-    e.target.classList.remove('grey')
-  }
-
-  if (port === undefined || port.isOpen === false) return
+function applyModemSignals() {
+  const { port } = connection
+  if (!port || !port.isOpen) return
+  // Keep the signal levels selected in this window.
   port.set(
     {
-      rts: store.get('general.modemSignal.rts'),
-      dtr: store.get('general.modemSignal.dtr'),
+      rts: !document.getElementById('rts-btn').classList.contains('grey'),
+      dtr: !document.getElementById('dtr-btn').classList.contains('grey'),
     },
-    (e) => {
-      if (e !== null) console.error(e)
+    (error) => {
+      if (error) console.error(error)
     }
   )
 }
 
-document.getElementById('dtr-btn').onclick = (e) => {
-  console.log('dtr click')
-
-  if (store.get('general.modemSignal.dtr') === true) {
-    store.set('general.modemSignal.dtr', false)
-    e.target.classList.add('grey')
-  } else {
-    store.set('general.modemSignal.dtr', true)
-    e.target.classList.remove('grey')
+for (const signal of ['rts', 'dtr']) {
+  const button = document.getElementById(signal + '-btn')
+  button.onclick = () => {
+    const off = button.classList.toggle('grey')
+    store.set('general.modemSignal.' + signal, !off)
+    applyModemSignals()
   }
-
-  if (port === undefined || port.isOpen === false) return
-  port.set(
-    {
-      rts: store.get('general.modemSignal.rts'),
-      dtr: store.get('general.modemSignal.dtr'),
-    },
-    (e) => {
-      if (e !== null) console.error(e)
-    }
-  )
 }
 
-document.getElementById('baud-select').onchange = (e) => {
-  let ele = e.target
+function updatePortSwitch() {
+  portSwitch.checked = connection.state === 'open' || connection.state === 'opening'
+  portSwitch.disabled = connection.state === 'opening' || connection.state === 'closing'
+}
 
-  store.set('baudIndex', ele.selectedIndex)
-  if (port === undefined || port.isOpen === false) return
+function openSelectedPort() {
+  const option = pathSelect.selectedOptions[0]
+  connection.open(option && !option.disabled ? option.value : '', _serialGetOptions())
+  updatePortSwitch()
+}
 
-  let baudRate = parseInt(ele.options[ele.selectedIndex].text)
-  if (isNaN(baudRate) === true) baudRate = 115200
-  port.update({ baudRate: baudRate }, (e) => {
-    if (e !== null) console.error(e)
+portSwitch.onclick = () => {
+  if (portSwitch.checked) openSelectedPort()
+  else serialClose()
+}
+
+baudSelect.onchange = () => {
+  store.set('baudIndex', baudSelect.selectedIndex)
+  const { port } = connection
+  if (!port || !port.isOpen) return
+  const baudRate = parseInt(selectedOptionText(baudSelect), 10) || 115200
+  port.update({ baudRate: baudRate }, (error) => {
+    if (error) console.error(error)
   })
 }
 
-document.getElementById('path-select').onchange = (e) => {
-  store.set('pathIndex', e.target.selectedIndex)
-  if (port === undefined || port.isOpen === false) return
-
-  port.close()
-  setTimeout(() => {
-    document.getElementById('port-switch').click()
-  }, 400)
+pathSelect.onchange = () => {
+  selectedPath = pathSelect.value
+  if (selectedPath) store.set('portPath', selectedPath)
+  const { state, port } = connection
+  if (!port || (state !== 'closing' && selectedPath === port.path)) return
+  reconnect = !!selectedPath
+  connection.close()
 }
 
-// Automatically update port
-let pathUpdated = false
-document.getElementById('path-input').onmouseover = (e) => {
-  if (true === pathUpdated) return
-  pathUpdated = true
-  _portUpdate()
-}
-document.getElementById('path-input').onmouseleave = (e) => {
-  pathUpdated = false
+document.getElementById('path-input').onmouseenter = refreshPorts
+
+function bindPrimaryPortControls(path, baud, toggle) {
+  const updatePath = () => populatePortSelect(path, availablePorts, selectedPath)
+  const updateBaud = () => {
+    baud.innerHTML = baudSelect.innerHTML
+    baud.value = baudSelect.value
+  }
+  serialEvents.on('ports', updatePath)
+  pathSelect.addEventListener('change', updatePath)
+  baudSelect.addEventListener('change', updateBaud)
+  new MutationObserver(updateBaud).observe(baudSelect, { childList: true, subtree: true })
+  path.onfocus = refreshPorts
+  path.onchange = () => {
+    pathSelect.value = path.value
+    mcss.FormSelect.init(pathSelect)
+    pathSelect.dispatchEvent(new Event('change'))
+  }
+  baud.onchange = () => {
+    baudSelect.value = baud.value
+    mcss.FormSelect.init(baudSelect)
+    baudSelect.dispatchEvent(new Event('change'))
+  }
+  toggle.onclick = () => portSwitch.click()
+  updatePath()
+  updateBaud()
 }
 
-let _autoRepeatTimeout
 /**
  * Transmit data through serial port with proper formatting
  * @param {string} dataIn - Raw input data to transmit
@@ -359,9 +330,8 @@ document.getElementById('trans-repeat-switch').onchange = (e) => {
 }
 
 function serialClose() {
-  if (port !== undefined) {
-    port.close()
-  }
+  reconnect = false
+  connection.close()
 }
 
 function serialInit(rcvdDataCB, echoDataCB) {
@@ -370,6 +340,12 @@ function serialInit(rcvdDataCB, echoDataCB) {
 }
 
 module.exports = {
+  serialEvents,
+  writeTerminalData: connection.writeTerminalData,
+  getPrimaryPortState: () => connection.state,
+  refreshPorts,
+  populatePortSelect,
+  bindPrimaryPortControls,
   serialInit,
   transmitData,
   serialClose,

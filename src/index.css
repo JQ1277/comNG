@@ -9,3 +9,5 @@
 @import url('./styles/chart.css');
 @import url('./styles/transmit.css');
 @import url('./styles/highlights.css');
+@import url('../node_modules/xterm/css/xterm.css');
+@import url('./styles/terminal.css');

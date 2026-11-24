@@ -12,12 +12,28 @@
     <div class="col s1"></div>
     <a class="btn-small waves-effect modem-btn grey col s1" id="dtr-btn">DTR</a>
   </div>
-  <div class="col s2">
+  <div class="col s3 serial-view-buttons">
     <a id="menu-btn" class="waves-effect btn-floating btn-small">
       <i i18n-title="setting" class="material-icons">menu</i>
     </a>
+    <button
+      id="terminal-mode-btn"
+      type="button"
+      aria-pressed="false"
+      i18n-title="terminalToggle"
+      i18n-label="terminalMode"
+    ></button>
+    <button
+      id="terminal-split-btn"
+      type="button"
+      aria-pressed="false"
+      i18n-title="terminalSplit"
+      i18n-aria-label="terminalSplit"
+    >
+      <i class="material-icons" aria-hidden="true">view_column</i>
+    </button>
   </div>
-  <div class="col s10">
+  <div class="col s9 serial-main-controls">
     <div class="input-field col s3" id="baud-input">
       <div class="container">
         <select id="baud-select">

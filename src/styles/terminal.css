@@ -1,0 +1,252 @@
+#bar-area .serial-view-buttons {
+  display: flex;
+  align-items: center;
+  height: var(--bar-height);
+}
+
+#bar-area .serial-view-buttons > * + * {
+  margin-left: 6px;
+}
+
+#bar-area .serial-view-buttons #menu-btn {
+  position: static;
+  flex-shrink: 0;
+}
+
+#terminal-mode-btn,
+#terminal-split-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 9px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #245b57;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+#terminal-split-btn {
+  width: 30px;
+  padding: 0;
+}
+
+#terminal-split-btn i {
+  font-size: 16px;
+  line-height: 1;
+}
+
+#terminal-mode-btn[aria-pressed='true'],
+#terminal-split-btn[aria-pressed='true'] {
+  background: #16433f;
+  color: #fff;
+}
+
+#serial-terminal {
+  position: fixed;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: #111827;
+  color: #d5dfec;
+  padding: 8px 12px 6px;
+}
+
+#serial-terminal[hidden],
+.terminal-pane[hidden],
+.terminal-connection[hidden] {
+  display: none;
+}
+
+body.terminal-active #editor-area,
+body.terminal-active #tabs-area,
+body.terminal-active #tab-add-btn {
+  visibility: hidden;
+}
+
+body.terminal-split #bar-area .serial-main-controls {
+  display: none;
+}
+
+#terminal-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+body.terminal-split #terminal-panes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 11px;
+}
+
+#terminal-secondary {
+  border-left: 1px solid #4c6079;
+  padding-left: 11px;
+}
+
+.terminal-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.terminal-toolbar,
+.terminal-connection {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 34px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #2e3b50;
+  white-space: nowrap;
+}
+
+.terminal-toolbar > :not([hidden]) ~ *,
+.terminal-connection > * + * {
+  margin-left: 8px;
+}
+
+.terminal-toolbar label {
+  color: #c4cfdf;
+  font-size: 12px;
+}
+
+.terminal-toolbar input[type='checkbox'] + span {
+  font-size: 12px;
+  padding-left: 25px;
+}
+
+.terminal-toolbar .terminal-enter {
+  width: 60px;
+}
+
+.terminal-toolbar {
+  flex-wrap: wrap;
+}
+
+.terminal-toolbar .terminal-log-actions {
+  display: flex;
+  margin-left: auto;
+  padding: 3px 0 3px 8px;
+}
+
+.terminal-log-actions button + button {
+  margin-left: 8px;
+}
+
+.terminal-log-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.terminal-toolbar button,
+.terminal-connection button,
+.terminal-baud-actions button,
+#serial-terminal select,
+#terminal-secondary-baud-input {
+  height: 26px;
+  padding: 2px 6px;
+  border: 1px solid #4c6079;
+  border-radius: 5px;
+  background: #1d2b40;
+  color: #d5dfec;
+}
+
+.terminal-toolbar button,
+.terminal-connection button,
+.terminal-baud-actions button {
+  cursor: pointer;
+}
+
+.terminal-connection button.connected {
+  background: #16433f;
+  border-color: #237b73;
+}
+
+.terminal-connection button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.terminal-connection .terminal-port {
+  flex: 1;
+  min-width: 0;
+}
+
+#serial-terminal .terminal-baud {
+  width: 82px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  margin: 0;
+  box-shadow: none;
+}
+
+#terminal-secondary-baud-dialog {
+  width: 250px;
+  padding: 16px;
+  border: 1px solid #4c6079;
+  border-radius: 8px;
+  background: #111827;
+  color: #d5dfec;
+}
+
+#terminal-secondary-baud-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#terminal-secondary-baud-dialog label {
+  color: inherit;
+}
+
+#terminal-secondary-baud-input {
+  display: block;
+  width: 100%;
+  margin: 8px 0 12px;
+}
+
+.terminal-baud-actions {
+  text-align: right;
+}
+
+.terminal-baud-actions button + button {
+  margin-left: 6px;
+}
+
+.terminal-screen {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal-screen .xterm {
+  height: 100%;
+}
+
+.terminal-screen .xterm-viewport::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-screen .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #435168;
+  border-radius: 5px;
+}
+
+/* Keep global Materialize input styling away from xterm's hidden input. */
+.terminal-screen .xterm-helper-textarea {
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#terminal-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #91a2ba;
+}

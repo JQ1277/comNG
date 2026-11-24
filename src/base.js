@@ -82,6 +82,8 @@ window.onload = () => {
   // Initialize form elements
   initializeFormElements()
 
+  require('./modules/terminal.js').initTerminalMode()
+
   // Check for updates after everything else is initialized
   checkForApplicationUpdates()
 

@@ -25,6 +25,131 @@
 
     <div id="editor-area"></div>
 
+    <section id="serial-terminal" hidden>
+      <div id="terminal-panes">
+        <section class="terminal-pane">
+          <div id="terminal-primary-controls" class="terminal-connection" hidden>
+            <strong i18n-label="terminalPrimary"></strong>
+            <select
+              id="terminal-primary-port"
+              class="browser-default terminal-port"
+              i18n-aria-label="selectSerialPort"
+            ></select>
+            <select
+              id="terminal-primary-baud"
+              class="browser-default terminal-baud"
+              i18n-aria-label="terminalBaud"
+            ></select>
+            <button
+              id="terminal-primary-toggle"
+              type="button"
+              i18n-label="terminalConnect"
+            ></button>
+          </div>
+          <div id="terminal-toolbar" class="terminal-toolbar">
+            <strong id="terminal-single-title" i18n-label="terminalMode"></strong>
+            <label
+              ><input id="terminal-local-echo" type="checkbox" /><span
+                i18n-label="terminalLocalEcho"
+              ></span
+            ></label>
+            <label for="terminal-enter" i18n-label="terminalEnter"></label>
+            <select
+              id="terminal-enter"
+              class="browser-default terminal-enter"
+              i18n-aria-label="terminalEnter"
+            >
+              <option value="cr">CR</option>
+              <option value="lf">LF</option>
+              <option value="crlf">CRLF</option>
+            </select>
+            <div class="terminal-log-actions">
+              <button id="terminal-save" type="button" i18n-label="terminalSaveLog"></button>
+              <button id="terminal-clear" type="button" i18n-label="terminalClear"></button>
+            </div>
+          </div>
+          <div id="terminal-screen" class="terminal-screen"></div>
+        </section>
+        <section id="terminal-secondary" class="terminal-pane" hidden>
+          <div class="terminal-connection">
+            <strong i18n-label="terminalSecondary"></strong>
+            <select
+              id="terminal-secondary-port"
+              class="browser-default terminal-port"
+              i18n-aria-label="selectSerialPort"
+            ></select>
+            <select
+              id="terminal-secondary-baud"
+              class="browser-default terminal-baud"
+              i18n-aria-label="terminalBaud"
+            ></select>
+            <button
+              id="terminal-secondary-toggle"
+              type="button"
+              i18n-label="terminalConnect"
+            ></button>
+          </div>
+          <div id="terminal-secondary-toolbar" class="terminal-toolbar">
+            <label
+              ><input id="terminal-secondary-local-echo" type="checkbox" /><span
+                i18n-label="terminalLocalEcho"
+              ></span
+            ></label>
+            <label for="terminal-secondary-enter" i18n-label="terminalEnter"></label>
+            <select
+              id="terminal-secondary-enter"
+              class="browser-default terminal-enter"
+              i18n-aria-label="terminalEnter"
+            >
+              <option value="cr">CR</option>
+              <option value="lf">LF</option>
+              <option value="crlf">CRLF</option>
+            </select>
+            <div class="terminal-log-actions">
+              <button
+                id="terminal-secondary-save"
+                type="button"
+                i18n-label="terminalSaveLog"
+              ></button>
+              <button
+                id="terminal-secondary-clear"
+                type="button"
+                i18n-label="terminalClear"
+              ></button>
+            </div>
+          </div>
+          <div id="terminal-secondary-screen" class="terminal-screen"></div>
+          <dialog
+            id="terminal-secondary-baud-dialog"
+            aria-labelledby="terminal-secondary-baud-label"
+          >
+            <form>
+              <label
+                id="terminal-secondary-baud-label"
+                for="terminal-secondary-baud-input"
+                i18n-label="customizedBaudRate"
+              ></label>
+              <input
+                id="terminal-secondary-baud-input"
+                class="browser-default"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]+"
+                maxlength="10"
+                required
+                autofocus
+              />
+              <div class="terminal-baud-actions">
+                <button type="button" i18n-label="terminalCancel"></button>
+                <button type="submit" i18n-label="terminalApply"></button>
+              </div>
+            </form>
+          </dialog>
+        </section>
+      </div>
+      <div id="terminal-hint" i18n-label="terminalHint"></div>
+    </section>
+
     <div id="menu-area" hidden>
       <div class="row" id="menu-handle"></div>
 
